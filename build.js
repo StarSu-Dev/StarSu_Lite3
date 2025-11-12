@@ -92,6 +92,11 @@ function cleanPath(p) {
   return decodeURIComponent(p.replace(/public\\//g, "").replace(/^\\//, ""));
 }
 
+// === Элементы интерфейса ===
+const menuToggle = document.querySelector(".menu-toggle");
+const sidebar = document.querySelector(".sidebar");
+const overlay = document.getElementById("overlay");
+
 // === Загрузка Markdown ===
 async function loadMarkdown(file) {
   const filePath = cleanPath(file);
@@ -115,7 +120,6 @@ async function loadMarkdown(file) {
     const html = md.render(text);
     content.innerHTML = html + '<br><button id="backBtn">← Назад</button>';
 
-    // 🔹 После показа контента — выравниваем его
     adjustMobileContent();
 
     document.getElementById("backBtn").onclick = () => {
@@ -160,21 +164,36 @@ async function loadCategory(category) {
 // === Обработка кликов ===
 document.addEventListener("click", async (e) => {
   const cat = e.target.closest("[data-category]");
+  const card = e.target.closest("[data-file]");
+
+  // Клик по категории
   if (cat) {
     e.preventDefault();
     const category = cat.dataset.category;
     history.pushState("", "", "#" + category);
     await loadCategory(category);
+
+    // 🔹 Закрытие сайдбара на мобильных
+    if (window.innerWidth <= 768 && sidebar && overlay) {
+      sidebar.classList.remove("active");
+      overlay.classList.remove("active");
+    }
     return;
   }
 
-  const card = e.target.closest("[data-file]");
+  // Клик по карточке
   if (card) {
     e.preventDefault();
     const file = cleanPath(card.dataset.file);
     const hash = card.dataset.hash;
     history.pushState("", "", hash);
     await loadMarkdown(file);
+
+    // 🔹 Также закрываем сайдбар
+    if (window.innerWidth <= 768 && sidebar && overlay) {
+      sidebar.classList.remove("active");
+      overlay.classList.remove("active");
+    }
   }
 });
 
@@ -206,10 +225,6 @@ function initAccordion() {
 window.addEventListener("DOMContentLoaded", initAccordion);
 
 // === Мобильное меню ===
-const menuToggle = document.querySelector(".menu-toggle");
-const sidebar = document.querySelector(".sidebar");
-const overlay = document.getElementById("overlay");
-
 if (menuToggle && sidebar && overlay) {
   menuToggle.addEventListener("click", () => {
     const isActive = sidebar.classList.toggle("active");
@@ -222,7 +237,7 @@ if (menuToggle && sidebar && overlay) {
   });
 }
 
-// === Динамическое выравнивание контента под хедер (для мобильной версии) ===
+// === Динамическое выравнивание контента под хедер ===
 function adjustMobileContent() {
   const header = document.querySelector("header");
   const content = document.getElementById("content");
@@ -230,7 +245,7 @@ function adjustMobileContent() {
 
   if (window.innerWidth <= 768) {
     const headerHeight = header.offsetHeight;
-    content.style.marginTop = headerHeight + -6 + "px"; // 🔹 чуть ближе к хедеру
+    content.style.marginTop = headerHeight + -6 + "px";
   } else {
     content.style.marginTop = "";
   }
@@ -245,5 +260,5 @@ document.addEventListener("DOMContentLoaded", adjustMobileContent);
 template = template.replace("</body>", script + "\n</body>");
 fs.writeFileSync(outputFile, template);
 console.log(
-  "✅ Сборка завершена! Контент теперь корректно выравнивается под хедер на мобильной версии."
+  "✅ Сборка завершена! Сайдбар теперь закрывается после кликов на мобильных устройствах."
 );

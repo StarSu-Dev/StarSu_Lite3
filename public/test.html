@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test fetchList</title>
+    <style>
+      body {
+        font-family: monospace;
+        padding: 20px;
+        background: #0d1117;
+        color: #e6edf3;
+      }
+      pre {
+        background: #161b22;
+        padding: 10px;
+        border-radius: 5px;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Test fetchList</h1>
+    <button onclick="testFetchList()">Test Fetch List</button>
+    <div id="output"></div>
+
+    <script>
+      async function testFetchList() {
+        const output = document.getElementById("output");
+        output.innerHTML = "<pre>Loading...</pre>";
+
+        try {
+          // Попробуем загрузить директорию
+          const dir = "content/guides/classes/";
+          console.log("Fetching:", dir);
+
+          const res = await fetch(dir);
+          console.log("Response status:", res.status);
+
+          const text = await res.text();
+          console.log("Response length:", text.length);
+
+          // Ищем href с .md
+          const matches = [...text.matchAll(/href="([^"]+\.md)"/g)];
+          console.log("Matches found:", matches.length);
+
+          let html = `<h2>Directory Listing Test</h2>`;
+          html += `<p>Response status: ${res.status}</p>`;
+          html += `<p>HTML length: ${text.length} bytes</p>`;
+          html += `<p>Files found: ${matches.length}</p>`;
+          html += `<pre>${text.substring(0, 1000)}</pre>`;
+          html += `<h3>Extracted Files:</h3><ul>`;
+          matches.forEach((m) => {
+            html += `<li>${dir}${m[1]}</li>`;
+          });
+          html += `</ul>`;
+
+          output.innerHTML = html;
+        } catch (err) {
+          output.innerHTML = `<pre>Error: ${err.message}\n${err.stack}</pre>`;
+        }
+      }
+    </script>
+  </body>
+</html>

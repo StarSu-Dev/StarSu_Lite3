@@ -122,10 +122,13 @@ async function loadMarkdown(file) {
 
     adjustMobileContent();
 
+    // 🔹 Исправленное поведение кнопки "Назад"
     document.getElementById("backBtn").onclick = () => {
       content.classList.remove("active");
+      content.innerHTML = ""; // очищаем содержимое
       cards.style.display = "grid";
       history.pushState("", "", "#" + currentCategory);
+      window.scrollTo({ top: 0, behavior: "instant" }); // сброс прокрутки
       adjustMobileContent();
     };
   } catch (err) {
@@ -170,8 +173,20 @@ document.addEventListener("click", async (e) => {
   if (cat) {
     e.preventDefault();
     const category = cat.dataset.category;
+
+    // Загружаем выбранную категорию
     history.pushState("", "", "#" + category);
     await loadCategory(category);
+
+    // 🔹 Очищаем контент и сбрасываем позицию страницы
+    const content = document.getElementById("content");
+    if (content) {
+      content.classList.remove("active");
+      content.innerHTML = "";
+    }
+
+    window.scrollTo({ top: 0, behavior: "instant" });
+    adjustMobileContent();
 
     // 🔹 Закрытие сайдбара на мобильных
     if (window.innerWidth <= 768 && sidebar && overlay) {
@@ -260,5 +275,5 @@ document.addEventListener("DOMContentLoaded", adjustMobileContent);
 template = template.replace("</body>", script + "\n</body>");
 fs.writeFileSync(outputFile, template);
 console.log(
-  "✅ Сборка завершена! Сайдбар теперь закрывается после кликов на мобильных устройствах."
+  "✅ Сборка завершена! Сайдбар и возврат теперь полностью корректно сбрасывают позицию страницы."
 );

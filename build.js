@@ -1,20 +1,19 @@
 import fs from "fs";
 import path from "path";
 
-// === Пути проекта ===
 const contentDir = "./content";
 const publicDir = "./public";
 const outputFile = path.join(publicDir, "index.html");
 
-// === Создание и копирование контента ===
+// Копирование контента
 fs.mkdirSync(path.join(publicDir, "content"), { recursive: true });
 fs.cpSync(contentDir, path.join(publicDir, "content"), { recursive: true });
 console.log("📂 Контент скопирован в public/content");
 
-// === Чтение шаблона ===
+// Чтение шаблона
 let template = fs.readFileSync(outputFile, "utf-8");
 
-// === Категории для справочников ===
+// Категории
 const categories = {
   classes: "Классы",
   races: "Расы",
@@ -26,6 +25,28 @@ const categories = {
   magic: "Магия и заклинания",
 };
 
+// === Сканирование markdown-файлов ===
+function scanMarkdown(root) {
+  const result = {};
+  if (!fs.existsSync(root)) return result;
+  const dirs = fs.readdirSync(root, { withFileTypes: true });
+  for (const dir of dirs) {
+    if (dir.isDirectory()) {
+      const catPath = path.join(root, dir.name);
+      const files = fs
+        .readdirSync(catPath)
+        .filter((f) => f.endsWith(".md"))
+        .map((f) => f);
+      result[dir.name] = files;
+    }
+  }
+  return result;
+}
+
+const guidesDir = path.join(contentDir, "guides");
+const allFiles = scanMarkdown(guidesDir);
+console.log("📘 Найдено категорий:", Object.keys(allFiles).length);
+
 // === Генерация сайдбара ===
 let sidebarHTML = `
 <div class="category open">
@@ -33,14 +54,13 @@ let sidebarHTML = `
   <ul class="category-links">
 `;
 for (const [key, title] of Object.entries(categories)) {
-  sidebarHTML += `<li><a href="#" data-category="${key}">${title}</a></li>`;
+  sidebarHTML += `<li><a href="#${key}" data-category="${key}">${title}</a></li>`;
 }
 sidebarHTML += `
   </ul>
 </div>
 `;
 
-// === Вставка сайдбара ===
 const sidebarRegex =
   /<aside\s+class="sidebar"\s+id="sidebar">[\s\S]*?<\/aside>/;
 template = template.replace(
@@ -48,111 +68,171 @@ template = template.replace(
   `<aside class="sidebar" id="sidebar">\n${sidebarHTML}\n</aside>`
 );
 
-// === Основной скрипт ===
+// Удаляем старые <script>
+template = template.replace(/<script>[\s\S]*?<\/script>/g, "");
+
+// Добавляем markdown-it
+if (!template.includes("markdown-it.min.js")) {
+  template = template.replace(
+    "</head>",
+    `<script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>\n</head>`
+  );
+}
+
+// === Основной JS ===
 const script = `
 <script>
-window.md = window.md || window.markdownit({ html: true, linkify: true });
+const md = window.markdownit({ html: true, linkify: true });
+let currentCategory = "";
+const allFiles = ${JSON.stringify(allFiles, null, 2)};
 
-// === Аккордеон ===
-document.addEventListener("click", (e) => {
-  const header = e.target.closest(".category-header");
-  if (header) header.parentElement.classList.toggle("open");
-});
+function cleanPath(p) {
+  if (!p) return "";
+  return decodeURIComponent(p.replace(/public\\//g, "").replace(/^\\//, ""));
+}
 
-// === Обработка клика по категории ===
-document.addEventListener("click", async (e) => {
-  const link = e.target.closest("[data-category]");
-  if (!link) return;
-  e.preventDefault();
+// === Автовыравнивание контента под хедер ===
+function adjustContentPosition() {
+  const header = document.querySelector("header");
+  const content = document.getElementById("content");
+  if (!header || !content) return;
+  const topOffset = header.offsetHeight + 20;
+  content.style.marginTop = topOffset + "px";
+}
 
-  const category = link.dataset.category;
+// === Загрузка Markdown ===
+async function loadMarkdown(file) {
+  const filePath = cleanPath(file);
+  console.log("📖 Загружаем:", filePath);
+
   const cards = document.getElementById("cards");
   const content = document.getElementById("content");
 
-  cards.innerHTML = "<p style='padding:20px;text-align:center;'>⏳ Загрузка...</p>";
-  cards.style.display = "block";
-  content.style.display = "none";
+  // 🔹 Полностью скрываем карточки
+  cards.style.display = "none";
 
-  // Получаем список файлов
-  const files = await window.fetchList(\`content/guides/\${category}\`);
+  // 🔹 Показываем контент
+  content.classList.add("active");
+  adjustContentPosition();
+  content.innerHTML = "<p>⏳ Загрузка файла...</p>";
+
+  try {
+    const res = await fetch(filePath);
+    if (!res.ok) {
+      content.innerHTML = "<p style='color:red'>Файл не найден.</p>";
+      return;
+    }
+
+    const text = await res.text();
+    const html = md.render(text);
+    content.innerHTML = html + '<br><button id="backBtn">← Назад</button>';
+
+    // 🔹 Кнопка "Назад"
+    document.getElementById("backBtn").onclick = () => {
+      content.classList.remove("active");
+      cards.style.display = "grid"; // возвращаем карточки
+      history.pushState("", "", "#" + currentCategory);
+    };
+  } catch (err) {
+    console.error("Ошибка при загрузке:", err);
+    content.innerHTML = "<p style='color:red'>Ошибка загрузки файла.</p>";
+  }
+}
+
+// === Загрузка категории ===
+async function loadCategory(category) {
+  currentCategory = category;
+  const cards = document.getElementById("cards");
+  const content = document.getElementById("content");
+
+  cards.style.display = "grid";
+  cards.innerHTML = "<p style='padding:20px;text-align:center;'>⏳ Загрузка...</p>";
+  content.classList.remove("active");
+
+  const files = (allFiles[category] || []).map(f => \`content/guides/\${category}/\${f}\`);
+
   if (!files.length) {
-    cards.innerHTML = "<p style='padding:20px;'>⚠ В этой категории пока нет файлов.</p>";
+    cards.innerHTML = "<p style='padding:20px;'>Нет доступных файлов.</p>";
     return;
   }
 
-  // Отображаем карточки
   cards.innerHTML = files.map(f => {
     const name = decodeURIComponent(f.split("/").pop().replace(".md", ""));
-    return \`<div class='card' data-file='\${f}'>
+    const hash = \`#\${category}/\${encodeURIComponent(name)}\`;
+    return \`<div class='card' data-file='\${f}' data-hash='\${hash}'>
       <h3>\${name}</h3>
       <p>Markdown файл</p>
     </div>\`;
   }).join("");
-});
+}
 
-// === Функция fetchList: безопасная генерация путей ===
-window.fetchList = async (dir) => {
-  try {
-    const res = await fetch(dir);
-    const html = await res.text();
-    const matches = [...html.matchAll(/href="([^"]+\\.md)"/g)];
-    return matches.map((m) => {
-      // Убираем лишнее
-      let href = m[1]
-        .replace(/^\\/+/, "")
-        .replace(/^public\\//, "")
-        .replace(/\\/+/g, "/");
-
-      // Если путь уже абсолютный — не добавляем dir
-      if (href.startsWith("content/")) {
-        return href;
-      }
-
-      return \`\${dir}/\${href}\`.replace(/\\/+/g, "/");
-    });
-  } catch (err) {
-    console.error("Ошибка fetchList:", err);
-    return [];
-  }
-};
-
-// === Клик по карточке: загрузка Markdown ===
+// === Обработка кликов ===
 document.addEventListener("click", async (e) => {
+  const cat = e.target.closest("[data-category]");
+  if (cat) {
+    e.preventDefault();
+    const category = cat.dataset.category;
+    history.pushState("", "", "#" + category);
+    await loadCategory(category);
+    return;
+  }
+
   const card = e.target.closest("[data-file]");
-  if (!card) return;
-  e.preventDefault();
-
-  const file = card.dataset.file
-    .replace(/^\\/?public\\//, "")
-    .replace(/\\/+/g, "/");
-
-  console.log("📖 Загружаем:", file);
-
-  const cards = document.getElementById("cards");
-  const content = document.getElementById("content");
-  cards.style.display = "none";
-  content.innerHTML = "<p>⏳ Загрузка файла...</p>";
-  content.style.display = "block";
-
-  try {
-    const res = await fetch(file);
-    if (!res.ok) throw new Error("Не найден файл: " + file);
-    const text = await res.text();
-    const html = md.render(text);
-    content.innerHTML = html + '<br><button id="backBtn">← Назад</button>';
-    document.getElementById("backBtn").onclick = () => {
-      content.style.display = "none";
-      cards.style.display = "grid";
-    };
-  } catch (err) {
-    console.error("Ошибка:", err);
-    content.innerHTML = \`<p style='color:red;'>⚠ Ошибка: \${err.message}</p>\`;
+  if (card) {
+    e.preventDefault();
+    const file = cleanPath(card.dataset.file);
+    const hash = card.dataset.hash;
+    history.pushState("", "", hash);
+    await loadMarkdown(file);
   }
 });
+
+// === Обработка якорей ===
+async function handleHash() {
+  const hash = location.hash.slice(1);
+  if (!hash) return;
+  const [category, item] = hash.split("/");
+  if (!category) return;
+
+  await loadCategory(category);
+  if (item) {
+    const file = \`content/guides/\${category}/\${decodeURIComponent(item)}.md\`;
+    await loadMarkdown(file);
+  }
+}
+
+if (location.hash) handleHash();
+window.addEventListener("hashchange", handleHash);
+
+// === Аккордеон ===
+function initAccordion() {
+  document.querySelectorAll(".category-header").forEach(header => {
+    header.addEventListener("click", () => {
+      header.closest(".category").classList.toggle("open");
+    });
+  });
+}
+window.addEventListener("DOMContentLoaded", initAccordion);
+
+// === Мобильное меню ===
+const menuToggle = document.querySelector(".menu-toggle");
+const sidebar = document.querySelector(".sidebar");
+const overlay = document.getElementById("overlay");
+
+if (menuToggle && sidebar && overlay) {
+  menuToggle.addEventListener("click", () => {
+    const isActive = sidebar.classList.toggle("active");
+    overlay.classList.toggle("active");
+    if (isActive) initAccordion();
+  });
+  overlay.addEventListener("click", () => {
+    sidebar.classList.remove("active");
+    overlay.classList.remove("active");
+  });
+}
 </script>
 `;
 
-// === Вставляем скрипт перед </body> ===
-template = template.replace(/<\/body>/, script + "\n</body>");
+template = template.replace("</body>", script + "\n</body>");
 fs.writeFileSync(outputFile, template);
-console.log("✅ Сборка завершена без ошибок!");
+console.log("✅ Сборка завершена! Карточки скрываются, контент под хедером.");

@@ -86,18 +86,10 @@ const md = window.markdownit({ html: true, linkify: true });
 let currentCategory = "";
 const allFiles = ${JSON.stringify(allFiles, null, 2)};
 
+// Очистка путей
 function cleanPath(p) {
   if (!p) return "";
   return decodeURIComponent(p.replace(/public\\//g, "").replace(/^\\//, ""));
-}
-
-// === Автовыравнивание контента под хедер ===
-function adjustContentPosition() {
-  const header = document.querySelector("header");
-  const content = document.getElementById("content");
-  if (!header || !content) return;
-  const topOffset = header.offsetHeight + 20;
-  content.style.marginTop = topOffset + "px";
 }
 
 // === Загрузка Markdown ===
@@ -108,12 +100,8 @@ async function loadMarkdown(file) {
   const cards = document.getElementById("cards");
   const content = document.getElementById("content");
 
-  // 🔹 Полностью скрываем карточки
   cards.style.display = "none";
-
-  // 🔹 Показываем контент
   content.classList.add("active");
-  adjustContentPosition();
   content.innerHTML = "<p>⏳ Загрузка файла...</p>";
 
   try {
@@ -127,11 +115,14 @@ async function loadMarkdown(file) {
     const html = md.render(text);
     content.innerHTML = html + '<br><button id="backBtn">← Назад</button>';
 
-    // 🔹 Кнопка "Назад"
+    // 🔹 После показа контента — выравниваем его
+    adjustMobileContent();
+
     document.getElementById("backBtn").onclick = () => {
       content.classList.remove("active");
-      cards.style.display = "grid"; // возвращаем карточки
+      cards.style.display = "grid";
       history.pushState("", "", "#" + currentCategory);
+      adjustMobileContent();
     };
   } catch (err) {
     console.error("Ошибка при загрузке:", err);
@@ -230,9 +221,29 @@ if (menuToggle && sidebar && overlay) {
     overlay.classList.remove("active");
   });
 }
+
+// === Динамическое выравнивание контента под хедер (для мобильной версии) ===
+function adjustMobileContent() {
+  const header = document.querySelector("header");
+  const content = document.getElementById("content");
+  if (!header || !content) return;
+
+  if (window.innerWidth <= 768) {
+    const headerHeight = header.offsetHeight;
+    content.style.marginTop = headerHeight + -6 + "px"; // 🔹 чуть ближе к хедеру
+  } else {
+    content.style.marginTop = "";
+  }
+}
+
+window.addEventListener("resize", adjustMobileContent);
+window.addEventListener("load", adjustMobileContent);
+document.addEventListener("DOMContentLoaded", adjustMobileContent);
 </script>
 `;
 
 template = template.replace("</body>", script + "\n</body>");
 fs.writeFileSync(outputFile, template);
-console.log("✅ Сборка завершена! Карточки скрываются, контент под хедером.");
+console.log(
+  "✅ Сборка завершена! Контент теперь корректно выравнивается под хедер на мобильной версии."
+);

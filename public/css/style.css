@@ -40,7 +40,7 @@ header h1 {
   display: none;
 }
 
-/* === КНОПКА-МЕНЮ (бургер) === */
+/* === КНОПКА-МЕНЮ === */
 .menu-toggle {
   display: none;
   background: none;
@@ -77,7 +77,7 @@ header h1 {
   border-right: none;
 }
 
-/* === КАТЕГОРИИ / АККОРДЕОН === */
+/* === АККОРДЕОН === */
 .category {
   margin-bottom: 20px;
   border-bottom: 1px solid #30363d;
@@ -92,7 +92,6 @@ header h1 {
   font-weight: bold;
   font-size: 16px;
   cursor: pointer;
-  user-select: none;
   padding: 10px 5px;
   transition: background 0.2s ease;
 }
@@ -150,7 +149,7 @@ main {
   flex-grow: 1;
   margin-left: 280px;
   margin-right: 280px;
-  padding: 20px 60px 40px;
+  padding: 60px 60px 40px; /* 60px сверху под фиксированный хедер */
   width: auto;
   max-width: none;
   box-sizing: border-box;
@@ -158,20 +157,15 @@ main {
 
 /* === КАРТОЧКИ === */
 #cards {
-  margin-top: 60px; /* 🔹 отступ под хедером */
+  margin-top: 20px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 24px;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
   padding: 0 20px;
 }
 
 #cards.hidden {
-  display: none; /* 🔹 полностью скрываем карточки при показе контента */
-}
-
-#cards.visible {
-  display: grid;
+  display: none;
 }
 
 .card {
@@ -197,14 +191,14 @@ main {
   font-size: 14px;
 }
 
-/* === ВЫВОД MARDKOWN-КОНТЕНТА === */
+/* === MARDKOWN-КОНТЕНТ === */
 #content {
   position: relative;
   left: 0;
   right: 0;
   max-width: 100%;
-  margin: 60px auto 0; /* 🔹 контент сразу под хедером */
-  padding: 20px 40px;
+  margin: 0 auto;
+  padding: 10px 40px;
   box-sizing: border-box;
   opacity: 0;
   pointer-events: none;
@@ -248,31 +242,15 @@ main {
 }
 
 /* === АДАПТИВНОСТЬ === */
-@media (max-width: 1600px) {
-  main {
-    margin-left: 240px;
-    margin-right: 240px;
-    padding: 20px 40px;
-  }
-}
-
-@media (max-width: 1300px) {
-  main {
-    margin-left: 220px;
-    margin-right: 120px;
-    padding: 20px 30px;
-  }
-}
-
 @media (max-width: 1024px) {
   .sidebar.right {
     display: none;
   }
 
   main {
-    margin-right: 0;
     margin-left: 260px;
-    padding: 20px;
+    margin-right: 0;
+    padding: 60px 20px;
   }
 
   #content {
@@ -306,11 +284,11 @@ main {
     margin-left: auto;
   }
 
+  /* 🔹 Мобильный сайдбар */
   .sidebar {
     position: fixed;
     top: 0;
-    right: 0;
-    left: auto;
+    left: 0;
     width: 100%;
     height: 100%;
     background: #0d1117;
@@ -327,19 +305,13 @@ main {
 
   main {
     margin: 0;
-    padding: 80px 20px 20px;
+    padding: 70px 20px 20px; /* контент сразу под хедером */
     max-width: 100%;
-  }
-
-  #cards {
-    margin-top: 80px;
   }
 
   #content {
+    margin-top: 0;
     padding: 20px;
-    margin-top: 80px; /* 🔹 учёт более высокого хедера */
-    width: 100%;
-    max-width: 100%;
   }
 
   .sidebar.right {
@@ -364,7 +336,7 @@ main {
 /* === МАЛЕНЬКИЕ ЭКРАНЫ === */
 @media (max-width: 480px) {
   main {
-    padding: 80px 15px 20px;
+    padding: 70px 15px 20px;
   }
 
   .card {

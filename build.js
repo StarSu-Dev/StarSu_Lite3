@@ -8,7 +8,7 @@ import { copyContent } from "./build/copyContent.js";
 
 const contentDir = "./content";
 const publicDir = "./public";
-const outputFile = path.join(publicDir, "index.html");
+const outputFile = path.join( "index.html");
 
 copyContent(contentDir, publicDir);
 

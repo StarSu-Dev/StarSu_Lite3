@@ -1,2 +1,2 @@
-# StarSu_Litet3
+# StarSu_Lite3
 
